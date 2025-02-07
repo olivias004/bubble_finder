@@ -18,6 +18,8 @@ from bubble_finder.density_mapping import density_grid
 from bubble_finder.thresholding import thresholding
 from bubble_finder.voxel_masking import voxel_masking
 from bubble_finder.find_bubbles import find_bubbles
+from bubble_finder.bubble_analysis import BubbleAnalysis, plot_nearest_neighbor_distribution, plot_centroids_on_density_map
+
 
 
 #Data analysis 
@@ -97,56 +99,16 @@ bubbles = bubbles_instance.bubbles          # List of valid clusters
 cleaned_array = bubbles_instance.cleaned_array  # Cleaned binary array with valid clusters
 
 
+# Analyse the bubbles
+bubble_analysis = BubbleAnalysis(
+    bubbles=bubbles, 
+    density_grid=density_grid, 
+    output_file="/Users/livisilcock/Desktop/important_bubbles/bubble_analysis.txt"
+)
 
-
-
-
-
-# Assuming `bubbles` is an instance of the `find_bubbles` class
-# The `bubbles.bubbles` attribute contains the list of valid bubble clusters as voxel arrays
-
-bubble_centers = []
-
-# Extract bubble centers from valid clusters
-for bubble in bubbles:  # `bubbles.bubbles` is a list of voxel arrays
-    # Calculate the center of each bubble
-    center_coords = np.mean(bubble, axis=0)
-    bubble_centers.append(center_coords)
-
-# Convert bubble centers to a numpy array
-bubble_centers = np.array(bubble_centers)
-
-
-
-
-threshold = np.percentile(density_grid[density_grid > 0], 30)
-binary_array = np.where((density_grid < threshold), 1, 0)
-
-the_map = np.sum(binary_array, axis=2)
-
-plt.figure(figsize=(20, 20))
-plt.imshow(the_map.T, origin='lower', cmap='bone_r', aspect='auto', vmin=65, vmax=75)
-plt.colorbar(label='Number of Voxels')
-
-# Adjust the bubble center coordinates to match the transposed map
-if bubble_centers.size > 0:  # Ensure centers exist
-    plt.scatter(
-        bubble_centers[:, 0],  # Transposed: y-coordinates become x
-        bubble_centers[:, 1],  # Transposed: x-coordinates become y
-        c='red',
-        s=50,
-        edgecolors='white',
-        label='Bubble Centers'
-    )
-
-plt.xlabel("X-axis (grid units)")
-plt.ylabel("Y-axis (grid units)")
-plt.title("Bubble Centers Overlaid on Density Map")
-plt.legend()
-plt.tight_layout()
-plt.show()
-# plt.savefig("/Users/livisilcock/Desktop/important_bubbles/centroids.png", bbox_inches = "tight")
-# plt.close()
+centroids = np.array([bubble['Position'] for bubble in bubble_analysis.bubble_analysis])
+plot_nearest_neighbor_distribution(centroids)
+plot_centroids_on_density_map(density_grid=density_grid, centroids=centroids)
 
 
 
@@ -154,51 +116,6 @@ plt.show()
 
 
 
-
-
-
-
-
-def plot_nearest_neighbor_distribution(centroids):
-    """
-    Plots the distribution of nearest neighbor distances.
-    
-    Parameters:
-    - centroids: Numpy array of bubble centroids.
-    """
-    # Step 1: Build KD-Tree
-    kd_tree = KDTree(centroids)
-    
-    # Step 2: Find the nearest neighbor for each bubble (excluding itself)
-    distances, _ = kd_tree.query(centroids, k=2)  # k=2 to get the nearest neighbor excluding self
-    nearest_distances = distances[:, 1]  # The second nearest is the actual nearest neighbor (excluding self)
-
-    # Step 3: Plot the distribution
-    plt.figure(figsize=(10, 6))
-    sns.histplot(nearest_distances * 0.04, kde=True, bins=100, color='blue', label='Nearest Neighbor Distances')
-    plt.title('Nearest Neighbor Distance Distribution')
-    plt.xlabel('Distance (kpc)')
-    plt.ylabel('Frequency')
-    plt.legend()
-    # plt.savefig("/Users/livisilcock/Desktop/important_bubbles/nearest_neighbour.png", bbox_inches = "tight")
-    # plt.close()
-
-
-# Extract the centroids for each bubble
-manual_centroids = []
-
-# Loop through each bubble cluster
-for bubble in bubbles:  # `bubbles.bubbles` is a list of voxel arrays
-    # Calculate the centroid of each bubble
-    centroid = np.mean(bubble, axis=0)
-    manual_centroids.append(centroid)
-
-# Convert to a numpy array for further processing
-manual_centroids = np.array(manual_centroids)
-
-# Now use the manual_centroids in your function
-plot_nearest_neighbor_distribution(manual_centroids)
-plt.show()
 
 
 
